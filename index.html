@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>SAEP Minimal</title>
+    <style>
+        body { font-family: sans-serif; max-width: 500px; margin: 20px auto; padding: 15px; border: 1px solid #ccc; }
+        .hidden { display: none; }
+        input, button { display: block; width: 100%; margin: 8px 0; padding: 8px; box-sizing: border-box; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        td, th { border: 1px solid #ccc; padding: 6px; text-align: left; }
+        .header { display: flex; justify-content: space-between; align-items: center; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. LOGIN -->
+    <div id="v-login">
+        <h3>Login</h3>
+        <input id="email" value="professor@senai.br">
+        <input id="senha" type="password" value="123">
+        <button onclick="login()">ENTRAR</button>
+        <small id="err" style="color:red"></small>
+    </div>
+
+    <!-- 2. TURMAS -->
+    <div id="v-turmas" class="hidden">
+        <div class="header">
+            <b onclick="ver('turmas')" style="cursor:pointer" id="prof-nome"></b>
+            <button onclick="logout()" style="width:auto">Sair</button>
+        </div>
+        <h4>Turmas</h4>
+        <input id="nova-turma" placeholder="Nome da nova turma">
+        <button onclick="cadTurma()">Cadastrar turma</button>
+        <table>
+            <thead><tr><th>#</th><th>Nome</th><th>Ação</th></tr></thead>
+            <tbody id="tb-turmas"></tbody>
+        </table>
+    </div>
+
+    <!-- 3. ATIVIDADES -->
+    <div id="v-ativ" class="hidden">
+        <div class="header">
+            <b onclick="ver('turmas')" style="cursor:pointer" class="prof-nome"></b>
+            <button onclick="logout()" style="width:auto">Sair</button>
+        </div>
+        <h4 id="turma-nome"></h4>
+        <input id="nova-ativ" placeholder="Descrição da atividade">
+        <button onclick="cadAtiv()">Cadastrar Atividade</button>
+        <table>
+            <thead><tr><th>#</th><th>Descrição</th></tr></thead>
+            <tbody id="tb-ativ"></tbody>
+        </table>
+        <button onclick="ver('turmas')">Voltar para Turmas</button>
+    </div>
+
+<script>
+    // Banco em LocalStorage
+    let db = JSON.parse(localStorage.getItem('saep')) || {
+        professores: [{ id: 1, nome: "Carlos Silva", email: "professor@senai.br", senha: "123" }],
+        turmas: [{ id: 1, nome: "Desenvolvimento SA01", profId: 1 }],
+        atividades: [{ id: 1, desc: "Lógica de programação", turmaId: 1 }]
+    };
+    let prof = null, turmaId = null;
+    const save = () => localStorage.setItem('saep', JSON.stringify(db));
+
+    function ver(tela) {
+        ['login', 'turmas', 'ativ'].forEach(t => document.getElementById('v-' + t).classList.add('hidden'));
+        document.getElementById('v-' + tela).classList.remove('hidden');
+        if (tela === 'turmas') renderTurmas();
+        if (tela === 'ativ') renderAtiv();
+    }
+
+    function login() {
+        prof = db.professores.find(p => p.email === document.getElementById('email').value && p.senha === document.getElementById('senha').value);
+        if (prof) {
+            document.getElementById('prof-nome').innerText = prof.nome;
+            document.querySelectorAll('.prof-nome').forEach(e => e.innerText = prof.nome);
+            ver('turmas');
+        } else document.getElementById('err').innerText = 'Credenciais inválidas!';
+    }
+
+    function logout() { prof = null; ver('login'); }
+
+    function renderTurmas() {
+        let html = '';
+        db.turmas.filter(t => t.profId === prof.id).forEach((t, i) => {
+            html += `<tr><td>${i+1}</td><td>${t.nome}</td><td>
+                <button onclick="delTurma(${t.id})">Excluir</button>
+                <button onclick="turmaId=${t.id};ver('ativ')">Visualizar</button>
+            </td></tr>`;
+        });
+        document.getElementById('tb-turmas').innerHTML = html;
+    }
+
+    function cadTurma() {
+        const input = document.getElementById('nova-turma');
+        if (!input.value) return;
+        db.turmas.push({ id: Date.now(), nome: input.value, profId: prof.id });
+        save(); input.value = ''; renderTurmas();
+    }
+
+    function delTurma(id) {
+        if (db.atividades.some(a => a.turmaId === id)) {
+            alert("Você não pode excluir uma turma com atividades cadastradas"); // Regra SAEP
+            return;
+        }
+        if (confirm("Confirmar exclusão?")) {
+            db.turmas = db.turmas.filter(t => t.id !== id);
+            save(); renderTurmas();
+        }
+    }
+
+    function renderAtiv() {
+        const turma = db.turmas.find(t => t.id === turmaId);
+        document.getElementById('turma-nome').innerText = 'Turma: ' + turma.nome;
+        let html = '';
+        db.atividades.filter(a => a.turmaId === turmaId).forEach((a, i) => {
+            html += `<tr><td>${i+1}</td><td>${a.desc}</td></tr>`;
+        });
+        document.getElementById('tb-ativ').innerHTML = html;
+    }
+
+    function cadAtiv() {
+        const input = document.getElementById('nova-ativ');
+        if (!input.value) return;
+        db.atividades.push({ id: Date.now(), desc: input.value, turmaId: turmaId });
+        save(); input.value = ''; renderAtiv();
+    }
+</script>
+</body>
+</html>
